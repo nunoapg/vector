@@ -103,9 +103,10 @@ async def vectorize_image(file: UploadFile = File(...)):
             tmp_in,
             tmp_out,
             mode='spline',
-            path_precision=2,
-            filter_speckle=4,
-            color_precision=6,
+            path_precision=1,
+            corner_threshold=60,
+            filter_speckle=2,
+            color_precision=8,
             hierarchical='stacked'
         )
         
