@@ -4,7 +4,6 @@ from fastapi.responses import Response, HTMLResponse
 import vtracer
 import cv2
 import numpy as np
-import tempfile
 import os
 import traceback
 
@@ -92,46 +91,39 @@ async def read_item():
 
 @app.post("/vectorize")
 async def vectorize_image(file: UploadFile = File(...)):
+    tmp_in = f"input_{file.filename}"
+    tmp_out = f"output_{file.filename}.svg"
+    
     try:
         contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        with open(tmp_in, "wb") as f:
+            f.write(contents)
         
-        if img is None:
-            raise HTTPException(status_code=400, detail="O ficheiro enviado não é uma imagem válida.")
+        vtracer.convert_image_to_svg_py(
+            tmp_in,
+            tmp_out,
+            mode='spline',
+            precision=2,
+            filter_speckle=4,
+            color_precision=6,
+            hierarchical='stacked'
+        )
+        
+        if not os.path.exists(tmp_out):
+            raise Exception("Falha na geração do ficheiro SVG.")
 
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
-            cv2.imwrite(tmp_in.name, img)
-            tmp_out = tmp_in.name.replace(".png", ".svg")
-            
-            try:
-                vtracer.convert_image_to_svg_py(
-                    tmp_in.name,
-                    tmp_out,
-                    mode='spline',
-                    precision=2,
-                    filter_speckle=4,
-                    color_precision=6,
-                    hierarchical='stacked'
-                )
-            except Exception as e:
-                print(f"Erro no VTracer: {e}")
-                raise HTTPException(status_code=500, detail="Erro ao processar a vetorização geométrica.")
-            
-            if not os.path.exists(tmp_out):
-                raise HTTPException(status_code=500, detail="O ficheiro SVG não foi gerado.")
-
-            with open(tmp_out, "r") as f:
-                svg_data = f.read()
-                
-            os.unlink(tmp_in.name)
-            os.unlink(tmp_out)
+        with open(tmp_out, "r") as f:
+            svg_data = f.read()
             
         return Response(content=svg_data, media_type="image/svg+xml")
 
     except Exception as e:
-        print(f"ERRO CRÍTICO: {traceback.format_exc()}")
+        print(f"ERRO: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+        if os.path.exists(tmp_in): os.remove(tmp_in)
+        if os.path.exists(tmp_out): os.remove(tmp_out)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
