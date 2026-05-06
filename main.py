@@ -105,7 +105,7 @@ async def vectorize_image(file: UploadFile = File(...)):
             tmp_out = tmp_in.name.replace(".png", ".svg")
             
             try:
-                vtracer.convert_image_to_svg(
+                vtracer.convert_image_to_svg_py(
                     tmp_in.name,
                     tmp_out,
                     mode='spline',
