@@ -30,7 +30,7 @@ async def read_item():
     <body>
         <div class="container">
             <h1>Vectorize AI Clone</h1>
-            <p>Converte as tuas imagens raster para SVG.</p>
+            <p>Otimizado para Tipografia e Linhas Retas</p>
             <input type="file" id="fileInput" accept="image/*">
             <br>
             <button onclick="uploadFile()" id="btn">Converter para SVG</button>
@@ -102,11 +102,11 @@ async def vectorize_image(file: UploadFile = File(...)):
         vtracer.convert_image_to_svg_py(
             tmp_in,
             tmp_out,
-            mode='spline',
+            mode='polygon',
             path_precision=1,
-            corner_threshold=60,
-            filter_speckle=2,
-            color_precision=8,
+            corner_threshold=180,
+            filter_speckle=4,
+            color_precision=2,
             hierarchical='stacked'
         )
         
