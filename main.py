@@ -30,7 +30,7 @@ async def read_item():
     <body>
         <div class="container">
             <h1>Vectorize AI Clone</h1>
-            <p>Otimizado para Tipografia (Ajuste de Precisão)</p>
+            <p>Processamento Avançado de Imagem</p>
             <input type="file" id="fileInput" accept="image/*">
             <br>
             <button onclick="uploadFile()" id="btn">Converter para SVG</button>
@@ -96,23 +96,29 @@ async def vectorize_image(file: UploadFile = File(...)):
     
     try:
         contents = await file.read()
-        with open(tmp_in, "wb") as f:
-            f.write(contents)
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+        
+        # --- TRUQUE DE PRÉ-PROCESSAMENTO ---
+        # 1. Aumentar a escala (Upscaling) para dar mais "espaço" às curvas
+        img_resized = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        
+        # 2. Leve desfoque para suavizar o antialiasing e degraus de pixéis
+        img_blurred = cv2.GaussianBlur(img_resized, (3, 3), 0)
+        
+        cv2.imwrite(tmp_in, img_blurred)
         
         vtracer.convert_image_to_svg_py(
             tmp_in,
             tmp_out,
             mode='spline',
             path_precision=1,
-            corner_threshold=80,
-            filter_speckle=4,
+            corner_threshold=100,
+            filter_speckle=2,
             color_precision=2,
             hierarchical='stacked'
         )
         
-        if not os.path.exists(tmp_out):
-            raise Exception("Falha na geração do ficheiro SVG.")
-
         with open(tmp_out, "r") as f:
             svg_data = f.read()
             
