@@ -1,6 +1,6 @@
 import uvicorn
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import Response
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import Response, HTMLResponse
 import vtracer
 import cv2
 import numpy as np
@@ -9,12 +9,78 @@ import os
 
 app = FastAPI()
 
+@app.get("/", response_class=HTMLResponse)
+async def read_item():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Vectorize AI Clone</title>
+        <style>
+            body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #121212; color: white; }
+            .container { background: #1e1e1e; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; }
+            input { margin: 1rem 0; }
+            button { background: #3f51b5; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+            button:disabled { background: #555; }
+            #result { margin-top: 2rem; max-width: 500px; }
+            svg { background: white; max-width: 100%; height: auto; border-radius: 4px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Vectorize AI Clone</h1>
+            <input type="file" id="fileInput" accept="image/*">
+            <br>
+            <button onclick="uploadFile()" id="btn">Converter para SVG</button>
+            <div id="result"></div>
+            <br>
+            <a id="download" style="display:none; color: #4caf50; text-decoration: none; font-weight: bold;">Baixar SVG</a>
+        </div>
+
+        <script>
+            async def uploadFile() {
+                const fileInput = document.getElementById('fileInput');
+                const btn = document.getElementById('btn');
+                const resultDiv = document.getElementById('result');
+                const downloadBtn = document.getElementById('download');
+                
+                if (fileInput.files.length === 0) return alert('Escolha um ficheiro!');
+
+                btn.disabled = true;
+                btn.innerText = 'A processar...';
+                
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                const response = await fetch('/vectorize', { method: 'POST', body: formData });
+                const svgText = await response.text();
+
+                resultDiv.innerHTML = svgText;
+                
+                const blob = new Blob([svgText], {type: 'image/svg+xml'});
+                const url = URL.createObjectURL(blob);
+                downloadBtn.href = url;
+                downloadBtn.download = 'vector.svg';
+                downloadBtn.style.display = 'inline-block';
+                downloadBtn.innerText = 'Descarregar SVG';
+
+                btn.disabled = false;
+                btn.innerText = 'Converter para SVG';
+            }
+        </script>
+    </body>
+    </html>
+    """
+
 @app.post("/vectorize")
 async def vectorize_image(file: UploadFile = File(...)):
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
+    if img is None:
+        raise HTTPException(status_code=400, detail="Ficheiro inválido")
+
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
         cv2.imwrite(tmp_in.name, img)
         tmp_out = tmp_in.name.replace(".png", ".svg")
